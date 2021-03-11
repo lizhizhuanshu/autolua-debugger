@@ -9,7 +9,7 @@
 	"categories": [
 		"Debuggers"
 	],
-	"publisher": "李炙",
+	"publisher": "lizhizhuanshu",
 	"activationEvents": [
 		"onLanguage:lua",
 		"onDebug",
