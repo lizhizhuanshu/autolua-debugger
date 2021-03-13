@@ -28,6 +28,7 @@ export class DebuggerProxy extends EventEmitter implements Debugger
     constructor()
     {
         super(); 
+        
     }
 
     private asUrlFileUpdateRecord(record:FileUpdateRecord)
@@ -102,7 +103,6 @@ export class DebuggerProxy extends EventEmitter implements Debugger
         let method :(error:void, data:Message)=>void;
         method = function(error:void,data:Message)
         {
-            console.log(data);
             if(data.type == MESSAGE_TYPE.LOG)
             {
                 proxy.onOutput(data.message,data.path,data.line);

@@ -54,7 +54,7 @@ export class DebugAdapter extends LoggingDebugSession
 				e.body.group = text;
 				e.body.output = `group-${text}\n`;
 			}
-			console.log(filePath,this.createSource(filePath));
+			//console.log(filePath,this.createSource(filePath));
 			e.body.source = this.createSource(filePath);
 			e.body.line = line;
 			e.body.column = this.convertDebuggerColumnToClient(column);
