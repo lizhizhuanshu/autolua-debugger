@@ -1,5 +1,7 @@
-# autolua-debugger README
+# autolua-debugger
 
-一个可以在vscode中调试autolua的插件
+一个可以在vscode中调试AutoLua的插件
 
+## License
+[MIT](LICENSE)
 
