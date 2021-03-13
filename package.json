@@ -1,7 +1,8 @@
 {
 	"name": "autolua-debugger",
 	"displayName": "AutoLuaDebugger",
-	"description": "AutoLua 调试器",
+	"description": "用于AutoLua框架的调试器",
+	"keywords": ["autolua"],
 	"version": "0.0.1",
 	"engines": {
 		"vscode": "^1.54.0"
@@ -53,6 +54,16 @@
 		"thrift-ts": "^1.1.5",
 		"vscode-debugadapter": "^1.45.0"
 	},
+	"license": "https://github.com/lizhizhuanshu/autolua-debugger/blob/master/LICENSE",
+	"bugs": {
+		"url": "https://github.com/lizhizhuanshu/autolua-debugger/issues"
+	},
+	"repository": {
+        "type": "git",
+        "url": "https://github.com/lizhizhuanshu/autolua-debugger"
+    },
+
+	"homepage": "https://github.com/lizhizhuanshu/autolua-debugger/blob/master/README.md",
 	"contributes": {
 		"commands": [
 			{
@@ -102,7 +113,7 @@
 				},
 				"initialConfigurations": [
 					{
-						"type": "AutoLua Debugger",
+						"type": "AutoLuaDebugger",
 						"name": "AutoLua Debugger Launch",
 						"request": "launch",
 						"ip": "",
@@ -114,7 +125,7 @@
 					{
 						"label": "AutoLua Debugger",
 						"body": {
-							"type": "AutoLua Debugger",
+							"type": "AutoLuaDebugger",
 							"name": "AutoLua Debugger Launch",
 							"request": "launch",
 							"ip": "",
