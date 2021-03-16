@@ -118,7 +118,7 @@
 						"request": "launch",
 						"ip": "",
 						"port": 7777,
-						"startFile": "^\"\\${file}\""
+						"startFile": "${file}"
 					}
 				],
 				"configurationSnippets": [
