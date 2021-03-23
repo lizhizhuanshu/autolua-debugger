@@ -356,15 +356,15 @@ export class ProjectManager
     /**
      * readFile
      */
-    public readFile(path:string):string {
+    public readFile(path:string):Buffer|undefined {
         try{
             let data:Buffer = fs.readFileSync(this.rootfsPath+SEP+path);
-            return data.toString("binary");
+            return data;
         }catch(e)
         {
             console.error(e);
         }
-        return "";
+
     }
 
     /**

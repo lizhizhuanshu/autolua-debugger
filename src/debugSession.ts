@@ -92,6 +92,8 @@ export class DebugAdapter extends LoggingDebugSession
 		// make VS Code to send cancelRequests
 		response.body.supportsCancelRequest = true;
 
+		response.body.supportsTerminateRequest = true;
+
 		// make VS Code send the breakpointLocations request
 		response.body.supportsBreakpointLocationsRequest = true;
 

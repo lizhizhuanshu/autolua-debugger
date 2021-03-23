@@ -3,32 +3,29 @@ import { EventEmitter } from 'events';
 import { sep as SEP}  from 'path';
 import { workspace } from 'vscode';
 import {ProjectManager,FileUpdateRecord} from './ProjectManager';
-import {Message,ProjectInfo,MESSAGE_TYPE} from './gen-nodejs/DebugService_types';
-import {Client} from './gen-nodejs/DebuggerService'
-import Int64 = require('node-int64');
-import * as thrift from "thrift";
-import { unwatchFile } from 'node:fs';
-const assert = require('assert');
 
-var transport = thrift.TFramedTransport;
-var protocol = thrift.TBinaryProtocol;
+import {Transport,TransportListener} from "./proto/transport";
+import { Message, METHOD } from "./proto/debugMessage"
+
+
+
 
 
 interface Debugger 
 {
     executeFile(ip:string,port:number, path:string,workspaceName:string):void
     execute(ip:string,port:number,code:string):void
-    stopExecute():void
+    stopExecute(callback:()=>void):void
 }
 
 
-export class DebuggerProxy extends EventEmitter implements Debugger
+export class DebuggerProxy extends EventEmitter implements Debugger,TransportListener
 {
-    debuggerService:Client|undefined;
+    private transport:Transport|undefined;
+    private executeFilePath:string|undefined;
     constructor()
     {
         super(); 
-        
     }
 
     private asUrlFileUpdateRecord(record:FileUpdateRecord)
@@ -93,47 +90,31 @@ export class DebuggerProxy extends EventEmitter implements Debugger
     }
 
     private onStop(reason?:string,...arg:any[]) {
-        this.emit(reason || "end",...arg);
         //console.log("debugger stop",reason);
+        this.transport?.close();
+        this.emit(reason || "end",...arg);
     }
 
-    private startReceiveMessage(debuggerService:Client)
+    onError(hasError:Error)
     {
-        let proxy = this;
-        let method :(error:void, data:Message)=>void;
-        method = function(error:void,data:Message)
-        {
-            if(data.type == MESSAGE_TYPE.LOG)
-            {
-                proxy.onOutput(data.message,data.path,data.line);
-                debuggerService.getMessage(method);
-            }else if(data.type == MESSAGE_TYPE.STOP)
-            {
-                proxy.onStop();
-            }else if(data.type == MESSAGE_TYPE.ERROR)
-            {
-                proxy.onOutput(data.message,data.path,data.line);
-                proxy.onStop();
-            }
-        }
-        debuggerService.getMessage(method);
+        this.onStop();
+    }
+
+    onConnect()
+    {
+        let message :Message = Message.create({
+            method:METHOD.GET_INFO,
+            name:<string>workspace.name
+        });
+        this.transport?.send(message);
     }
 
 
 
-    private async onCheckProjectFile(debuggerService:Client, projectInfo :ProjectInfo)
+    private updateFile(name:string,version:number)
     {
-        if(projectInfo.feature == null 
-            && projectInfo.name == null
-            && projectInfo.version.equals(new Int64(0)))
-        {
-            await debuggerService.createProject(<string>workspace.name,
-                ProjectManager.getInstance().getProjectFeature(),
-                new Int64(0))
-        }
-
-        let projectName =<string>workspace.name;
-        let events = ProjectManager.getInstance().getNeedUpdateEvents(projectInfo.version.toNumber());
+        let message:Message;
+        let events = ProjectManager.getInstance().getNeedUpdateEvents(version);
         if(events != undefined)
         {
             let projectManager:ProjectManager = ProjectManager.getInstance();
@@ -143,7 +124,8 @@ export class DebuggerProxy extends EventEmitter implements Debugger
                 for(let i=0;i<events.newDirectory.length;i++)
                 {
                     let value = events.newDirectory[i];
-                    await debuggerService.createDirectory(projectName,value);
+                    message = Message.create({name:name,path:value,method:METHOD.CREATE_DIRECTORY});
+                    this.transport?.send(message);
                 }
             }
 
@@ -152,7 +134,14 @@ export class DebuggerProxy extends EventEmitter implements Debugger
                 for(let i=0;i<events.newFile.length;i++)
                 {
                     let value = events.newFile[i];
-                    await debuggerService.updateFile(projectName,value,projectManager.readFile(value));
+                    let data = projectManager.readFile(value);
+                    message = Message.create({
+                        name:name,
+                        path:value,
+                        method:METHOD.UPDATE_FILE,
+                        data:data
+                    });
+                    this.transport?.send(message);
                 }
             }
 
@@ -161,7 +150,8 @@ export class DebuggerProxy extends EventEmitter implements Debugger
                 for(let i=0;i<events.deleteFile.length;i++)
                 {
                     let value = events.deleteFile[i];
-                    await debuggerService.deleteFile(projectName,value);
+                    message = Message.create({name:name,path:value,method:METHOD.DELETE_FILE});
+                    this.transport?.send(message);
                 }
             }
 
@@ -170,64 +160,53 @@ export class DebuggerProxy extends EventEmitter implements Debugger
                 for(let i=0;i<events.deleteDirectory.length;i++)
                 {
                     let value = events.deleteDirectory[i];
-                    await debuggerService.deleteDirectory(projectName,value);
+                    message = Message.create({name:name,path:value,method:METHOD.DELETE_DIRECTORY});
+                    this.transport?.send(message);
                 }
             }
-            await debuggerService.updateVersion(projectName,new Int64(events.version));
+            message = Message.create({name:name,version:events.version,method:METHOD.UPDATE_VERSION});
+            this.transport?.send(message);
         }
     }
 
-    private checkProjectInfo(callback:(info:ProjectInfo)=>void)
+    public onGetInfo(message:Message)
     {
-        this.debuggerService?.getInfo(<string>workspace.name).then((info:ProjectInfo)=>{
-            if(info.feature == null 
-                && info.name == null
-                && info.version.equals(new Int64(0)))
-            {
-                info.feature = ProjectManager.getInstance().getProjectFeature();
-                info.name = <string>workspace.name;
-                info.version = new Int64(0);
-                this.debuggerService?.createProject(info.name,info.feature,info.version).then(()=>{
-                    callback(info);
-                })
-            }else{
-                callback(info);
-            }
-        })
+        if(message.name == '')
+        {
+            message.name = <string>workspace.name;
+            message.feature =  ProjectManager.getInstance().getProjectFeature();
+            message.version = 0;
+            message.method = METHOD.CREATE_PROJECT;
+            this.transport?.send(message);
+        }
+        this.updateFile(message.name,message.version);
+        message = Message.create({name:message.name,
+            path:<string>this.executeFilePath,
+            method:METHOD.EXECUTE_FILE
+        });
+        this.transport?.send(message);
+    }
+
+    onReceiveMessage(message:Message)
+    {
+        //console.log("on receive ",message.method);
+        switch (message.method) {
+            case METHOD.GET_INFO:
+                this.onGetInfo(message);
+                break;
+            case METHOD.LOG:
+                this.onOutput(message.message,message.path,message.line);
+                break;
+            case METHOD.STOPPED:
+                this.onStop();
+            default:
+                break;
+        }
     }
 
     private startExecute(ip:string,port:number, other: string) {
-        let connection = thrift.createConnection(ip, port, {
-            transport : transport,
-            protocol : protocol
-        });
-        let proxy:DebuggerProxy = this;
-        connection.on('error', function(err:any) {
-            proxy.onStop();
-        });
-        let projectName =<string>workspace.name;
-        let debuggerService:Client = thrift.createClient(Client, connection);
-        this.debuggerService = debuggerService;
-        this.checkProjectInfo((info:ProjectInfo)=>{
-            proxy.onCheckProjectFile(debuggerService,info).then(()=>{
-                debuggerService.executeFile(projectName,other).then();
-                let method = (data:Message)=>{
-                    if(data.type == MESSAGE_TYPE.LOG)
-                    {
-                        proxy.onOutput(data.message,data.path,data.line);
-                        debuggerService.getMessage().then(method);
-                    }else if(data.type == MESSAGE_TYPE.STOP)
-                    {
-                        proxy.onStop();
-                    }else if(data.type == MESSAGE_TYPE.ERROR)
-                    {
-                        proxy.onOutput(data.message,data.path,data.line);
-                        proxy.onStop();
-                    }
-                };
-                debuggerService.getMessage().then(method);
-            });
-        });
+        this.executeFilePath = other;
+        this.transport = new Transport(ip,port,this);
     }
 
 
@@ -240,9 +219,10 @@ export class DebuggerProxy extends EventEmitter implements Debugger
     }
 
     stopExecute(): void {
-        this.debuggerService?.interrupt(function(){
-            
-        })
+        let message :Message = Message.create({
+            method:METHOD.INTERRUPT,
+        });
+        this.transport?.send(message);
     }
 
 }

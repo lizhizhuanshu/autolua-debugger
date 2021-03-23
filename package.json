@@ -2,8 +2,10 @@
 	"name": "autolua-debugger",
 	"displayName": "AutoLuaDebugger",
 	"description": "用于AutoLua框架的调试器",
-	"keywords": ["autolua"],
-	"version": "0.0.1",
+	"keywords": [
+		"autolua"
+	],
+	"version": "0.0.2",
 	"engines": {
 		"vscode": "^1.54.0"
 	},
@@ -49,9 +51,8 @@
 	"dependencies": {
 		"await-notify": "^1.0.1",
 		"node-int64": "^0.4.0",
+		"protobufjs": "^6.10.2",
 		"string-random": "^0.1.3",
-		"thrift": "^0.14.1",
-		"thrift-ts": "^1.1.5",
 		"vscode-debugadapter": "^1.45.0"
 	},
 	"license": "https://github.com/lizhizhuanshu/autolua-debugger/blob/master/LICENSE",
@@ -59,10 +60,9 @@
 		"url": "https://github.com/lizhizhuanshu/autolua-debugger/issues"
 	},
 	"repository": {
-        "type": "git",
-        "url": "https://github.com/lizhizhuanshu/autolua-debugger"
-    },
-
+		"type": "git",
+		"url": "https://github.com/lizhizhuanshu/autolua-debugger"
+	},
 	"homepage": "https://github.com/lizhizhuanshu/autolua-debugger/blob/master/README.md",
 	"contributes": {
 		"commands": [
