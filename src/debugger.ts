@@ -171,7 +171,7 @@ export class DebuggerProxy extends EventEmitter implements Debugger,TransportLis
 
     public onGetInfo(message:Message)
     {
-        if(message.name == '')
+        if(message.hasOwnProperty("name"))
         {
             message.name = <string>workspace.name;
             message.feature =  ProjectManager.getInstance().getProjectFeature();

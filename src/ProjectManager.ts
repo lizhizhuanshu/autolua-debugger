@@ -4,10 +4,6 @@ import { sep as SEP}  from 'path';
 
 import  'string-random'
 import stringRandom = require('string-random');
-import { assert } from 'node:console';
-import { isIP } from 'node:net';
-
-let thrift = require("thrift")
 
 
 //文件更改记录的问题需要重新设计
