@@ -171,7 +171,7 @@ export class DebuggerProxy extends EventEmitter implements Debugger,TransportLis
 
     public onGetInfo(message:Message)
     {
-        if(message.hasOwnProperty("name"))
+        if(!message.hasOwnProperty("name"))
         {
             message.name = <string>workspace.name;
             message.feature =  ProjectManager.getInstance().getProjectFeature();
@@ -189,7 +189,6 @@ export class DebuggerProxy extends EventEmitter implements Debugger,TransportLis
 
     onReceiveMessage(message:Message)
     {
-        //console.log("on receive ",message.method);
         switch (message.method) {
             case METHOD.GET_INFO:
                 this.onGetInfo(message);
