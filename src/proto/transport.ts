@@ -19,7 +19,6 @@ export interface TransportListener
 export class Transport implements ITransport
 {
     private socket:net.Socket;
-    private sendHeader:Buffer;
 
 
     private receiveHeader:Buffer;
@@ -35,7 +34,6 @@ export class Transport implements ITransport
     constructor(ip:string,port:number,listener:TransportListener)
     {
         this.listener = listener;
-        this.sendHeader = Buffer.alloc(4);
         this.socket = net.connect(port,ip,()=>{
             listener.onConnect();
         });
@@ -91,8 +89,9 @@ export class Transport implements ITransport
         //console.log(message.toJSON())
         let buffer = Message.encode(message).finish();
         let size = buffer.byteLength;
-        this.sendHeader.writeInt32LE(size,0);
-        this.socket.write(this.sendHeader);
+        let sendHeader = Buffer.alloc(4);
+        sendHeader.writeInt32LE(size,0);
+        this.socket.write(sendHeader);
         this.socket.write(buffer);
     }
 
