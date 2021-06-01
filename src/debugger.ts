@@ -4,7 +4,7 @@ import { sep as SEP}  from 'path';
 import { workspace } from 'vscode';
 import {ProjectManager,FileUpdateRecord} from './ProjectManager';
 
-import {Transport,TransportListener} from "./proto/transport";
+import {Transport,TransportListener} from "./transport";
 import { Message, METHOD } from "./proto/debugMessage"
 
 
@@ -97,11 +97,13 @@ export class DebuggerProxy extends EventEmitter implements Debugger,TransportLis
 
     onError(hasError:Error)
     {
+        this.onOutput("与调试器断开连接","",0);
         this.onStop();
     }
 
     onConnect()
     {
+        this.onOutput("已经连接到调试器","",0);
         let message :Message = Message.create({
             method:METHOD.GET_INFO,
             name:<string>workspace.name
@@ -205,6 +207,7 @@ export class DebuggerProxy extends EventEmitter implements Debugger,TransportLis
 
     private startExecute(ip:string,port:number, other: string) {
         this.executeFilePath = other;
+        this.onOutput("正在尝试连接调试器......","",0);
         this.transport = new Transport(ip,port,this);
     }
 

@@ -1,5 +1,5 @@
 
-import { Message } from "./debugMessage"
+import { Message } from "./proto/debugMessage"
 import * as net from "net"
 
 
