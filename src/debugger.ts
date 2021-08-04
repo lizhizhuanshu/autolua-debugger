@@ -1,31 +1,57 @@
 import { EventEmitter } from 'events';
-
 import { sep as SEP}  from 'path';
-import { workspace } from 'vscode';
+import { window, workspace,WorkspaceFolder } from 'vscode';
 import {ProjectManager,FileUpdateRecord} from './ProjectManager';
-
+import * as fs from 'fs';
 import {Transport,TransportListener} from "./transport";
 import { Message, METHOD } from "./proto/debugMessage"
-
-
-
+import "moment"
+import moment = require('moment');
 
 
 interface Debugger 
 {
-    executeFile(ip:string,port:number, path:string,workspaceName:string):void
-    execute(ip:string,port:number,code:string):void
+    executeFile(path:string,workspaceName:string):void
+    execute(code:string):void
     stopExecute(callback:()=>void):void
 }
+
 
 
 export class DebuggerProxy extends EventEmitter implements Debugger,TransportListener
 {
     private transport:Transport|undefined;
     private executeFilePath:string|undefined;
-    constructor()
+    private address:string|undefined;
+    private observer:(state:string)=>void|undefined;
+    
+
+    constructor(observer:(state:string)=>void|undefined)
     {
-        super(); 
+        super();
+        this.observer = observer;
+    }
+
+    private updateState(state:string,address:string|undefined)
+    {
+        window.showInformationMessage(state+" remote host "+address)
+        this.observer(state)
+    }
+
+    public connect(address:string,port:number)
+    {
+        if(this.address != address || this.transport == undefined)
+        {
+            this.updateState("connecting",address);
+            this.transport = new Transport(address,port,this);
+            this.address = address;
+        }
+    }
+
+    public disconnect()
+    {
+        this.transport?.close();
+        this.transport = undefined;
     }
 
     private asUrlFileUpdateRecord(record:FileUpdateRecord)
@@ -90,25 +116,25 @@ export class DebuggerProxy extends EventEmitter implements Debugger,TransportLis
     }
 
     private onStop(reason?:string,...arg:any[]) {
-        //console.log("debugger stop",reason);
-        this.transport?.close();
         this.emit(reason || "end",...arg);
     }
 
     onError(hasError:Error)
     {
-        this.onOutput("与调试器断开连接","",0);
+
+    }
+
+    onClose(hasError:boolean)
+    {
+        this.updateState("disconnected",this.address);
+        this.transport?.close();
+        this.transport = undefined;
         this.onStop();
     }
 
     onConnect()
     {
-        this.onOutput("已经连接到调试器","",0);
-        let message :Message = Message.create({
-            method:METHOD.GET_INFO,
-            name:<string>workspace.name
-        });
-        this.transport?.send(message);
+        this.updateState("connected",this.address);
     }
 
 
@@ -189,6 +215,34 @@ export class DebuggerProxy extends EventEmitter implements Debugger,TransportLis
         this.transport?.send(message);
     }
 
+    private getScreenshotPath() :string|undefined
+    {
+        let uri = (workspace.workspaceFolders as WorkspaceFolder[])[0].uri;
+        let path = workspace.getConfiguration("AutoLua.settings").get("screenshotPath");;
+        if(path != undefined)
+        {
+            return uri.fsPath+SEP+path;
+        }
+        return undefined;
+    }
+
+    private onScreenshot(data:Uint8Array )
+    {
+
+        let rootPath = this.getScreenshotPath();
+        if(rootPath == undefined)
+        {
+            window.showWarningMessage("you need set screenshot directory");
+        }
+        else if(fs.existsSync(rootPath))
+        {
+            let path = moment().format('YYYY_MM_DD_HH_mm_ss');
+            fs.writeFileSync( rootPath + SEP+path+".png",data);
+        }else{
+            window.showWarningMessage("don't have screenshot directory "+rootPath);
+        }
+    }
+
     onReceiveMessage(message:Message)
     {
         switch (message.method) {
@@ -200,23 +254,36 @@ export class DebuggerProxy extends EventEmitter implements Debugger,TransportLis
                 break;
             case METHOD.STOPPED:
                 this.onStop();
+                break;
+            case METHOD.SCREENSHOT:
+                this.onScreenshot(message.data);
+                break;
             default:
                 break;
         }
     }
 
-    private startExecute(ip:string,port:number, other: string) {
+    private startExecute(other: string) {
         this.executeFilePath = other;
-        this.onOutput("正在尝试连接调试器......","",0);
-        this.transport = new Transport(ip,port,this);
+        if(this.transport != undefined)
+        {
+            let message :Message = Message.create({
+                method:METHOD.GET_INFO,
+                name:<string>workspace.name
+            });
+            this.transport.send(message);
+        }else{
+            window.showWarningMessage("please connect remote device");
+            this.onStop();
+        }
     }
 
 
-    executeFile(ip:string,port:number,path: string): void {
-        this.startExecute(ip,port,workspace.asRelativePath(path));
+    executeFile(path: string): void {
+        this.startExecute(workspace.asRelativePath(path));
     }
 
-    execute(ip:string,port:number,code: string): void {
+    execute(code: string): void {
         
     }
 
@@ -227,4 +294,17 @@ export class DebuggerProxy extends EventEmitter implements Debugger,TransportLis
         this.transport?.send(message);
     }
 
+    public screenShot():void
+    {
+
+        if(this.transport != undefined)
+        {
+            let message :Message = Message.create({
+                method:METHOD.SCREENSHOT,
+            });
+            this.transport.send(message);
+        }else{
+            window.showWarningMessage("please connect remote device");
+        }
+    }
 }

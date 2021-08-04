@@ -5,7 +5,7 @@
 	"keywords": [
 		"autolua"
 	],
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"engines": {
 		"vscode": "^1.54.0"
 	},
@@ -16,7 +16,9 @@
 	"activationEvents": [
 		"onLanguage:lua",
 		"onDebug",
-		"onCommand:AutoLuaDebugger.clearVersionRecord"
+		"onCommand:AutoLua.debug.clearVersionRecord",
+		"onCommand:AutoLua.debug.updateRemoteDevice",
+		"onCommand:AutoLua.debug.connectClient"
 	],
 	"main": "./dist/extension.js",
 	"scripts": {
@@ -50,6 +52,8 @@
 	},
 	"dependencies": {
 		"await-notify": "^1.0.1",
+		"minimatch": "^3.0.4",
+		"moment": "^2.29.1",
 		"node-int64": "^0.4.0",
 		"protobufjs": "^6.10.2",
 		"string-random": "^0.1.3",
@@ -65,10 +69,97 @@
 	},
 	"homepage": "https://github.com/lizhizhuanshu/autolua-debugger/blob/master/README.md",
 	"contributes": {
+		"productIconThemes": [
+			{
+				"id": "aliensAreBack",
+				"label": "Aliens Are Back",
+				"path": "./producticons/aliens-product-icon-theme.json"
+			}
+		],
+		"configuration": [
+			{
+				"properties": {
+					"AutoLua.settings.port": {
+						"type": "integer",
+						"description": "debug service port",
+						"default": "7777"
+					},
+					"AutoLua.settings.ignoreFileMatch":{
+						"type":"array",
+						"description": "auto lua ignore file",
+						"default":[
+							".vscode",
+							"screenshot",
+							".vscode/**",
+							"screenshot/**"
+						]
+					},
+					"AutoLua.settings.screenshotPath":{
+						"type":"string",
+						"description": "screenshot picture directory",
+						"default":"screenshot"
+					}
+				}
+			}
+		],
+		"views": {
+			"debug": [
+				{
+					"id": "remoteDevice",
+					"name": "远程设备"
+				}
+			]
+		},
+		"menus": {
+			"view/title": [
+				{
+					"when": "view == remoteDevice",
+					"group": "navigation",
+					"command": "AutoLua.debug.updateRemoteDevice"
+				},
+				{
+					"command": "AutoLua.debug.disconnectClient",
+					"when": "view == remoteDevice",
+					"group": "navigation"
+				},
+				{
+					"command": "AutoLua.debug.screenshot",
+					"when": "view == remoteDevice",
+					"group": "navigation"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "AutoLua.debug.connectClient",
+					"group": "inline",
+					"when": "view == remoteDevice"
+				}
+			]
+		},
 		"commands": [
 			{
-				"command": "AutoLuaDebugger.clearVersionRecord",
-				"title": "AutoLuaDebugger:清除版本记录"
+				"command": "AutoLua.debug.clearVersionRecord",
+				"title": "AutoLua:clear workspace version info"
+			},
+			{
+				"command": "AutoLua.debug.updateRemoteDevice",
+				"icon": "$(refresh)",
+				"title": "AutoLua:update remote device"
+			},
+			{
+				"command": "AutoLua.debug.connectClient",
+				"icon": "$(remote)",
+				"title": "AutoLua:connect remote device"
+			},
+			{
+				"command": "AutoLua.debug.disconnectClient",
+				"icon": "$(debug-disconnect)",
+				"title": "AutoLua:disconnect remote device"
+			},
+			{
+				"command": "AutoLua.debug.screenshot",
+				"icon": "$(device-camera)",
+				"title": "AutoLua:screenshot"
 			}
 		],
 		"breakpoints": [
@@ -88,21 +179,9 @@
 				"configurationAttributes": {
 					"launch": {
 						"required": [
-							"ip",
-							"port",
 							"startFile"
 						],
 						"properties": {
-							"ip": {
-								"type": "string",
-								"description": "远程主机的ip地址",
-								"default": ""
-							},
-							"port": {
-								"type": "number",
-								"description": "远程主机的端口",
-								"default": 7777
-							},
 							"startFile": {
 								"type": "string",
 								"description": "启动文件的路径",
@@ -116,8 +195,6 @@
 						"type": "AutoLuaDebugger",
 						"name": "AutoLua Debugger Launch",
 						"request": "launch",
-						"ip": "",
-						"port": 7777,
 						"startFile": "${file}"
 					}
 				],
@@ -128,8 +205,6 @@
 							"type": "AutoLuaDebugger",
 							"name": "AutoLua Debugger Launch",
 							"request": "launch",
-							"ip": "",
-							"port": 7777,
 							"startFile": "^\"\\${file}\""
 						}
 					}

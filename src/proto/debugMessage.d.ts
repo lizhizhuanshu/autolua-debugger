@@ -13,7 +13,8 @@ export enum METHOD {
     EXECUTE_FILE = 9,
     INTERRUPT = 10,
     LOG = 11,
-    STOPPED = 12
+    STOPPED = 12,
+    SCREENSHOT = 13
 }
 
 /** Represents a Message. */

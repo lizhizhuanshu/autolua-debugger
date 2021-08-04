@@ -13,6 +13,7 @@ export interface TransportListener
 {
     onReceiveMessage(message:Message):void;
     onError(hasError:Error):void;
+    onClose(hasError:boolean):void;
     onConnect():void;
 }
 
@@ -40,6 +41,9 @@ export class Transport implements ITransport
         this.socket.on("error",(hasError)=>{
             listener.onError(hasError);
         });
+        this.socket.on("close",(hasError)=>{
+            listener.onClose(hasError);
+        })
         this.receiveHeader = Buffer.alloc(4);
         this.targetSize = 4;
         this.targetBuffer = this.receiveHeader;
@@ -86,7 +90,7 @@ export class Transport implements ITransport
 
     public send(message:Message)
     {
-        //console.log(message.toJSON())
+        // console.log(message.toJSON())
         let buffer = Message.encode(message).finish();
         let size = buffer.byteLength;
         let sendHeader = Buffer.alloc(4);

@@ -4,7 +4,8 @@ import { sep as SEP}  from 'path';
 
 import  'string-random'
 import stringRandom = require('string-random');
-
+import { glob } from 'glob';
+import { Minimatch,IMinimatch } from 'minimatch';
 
 //文件更改记录的问题需要重新设计
 
@@ -47,6 +48,7 @@ interface FileTypeRecord
 }
 
 
+
 export class ProjectManager
 {
     private static readonly fileUpdatePackageRecorderKey="fileUpdatePackageRecorder";
@@ -63,8 +65,35 @@ export class ProjectManager
     private fileUpdatePackageRecorder:FileUpdatePackageRecorder;
     private lastChangePath:string|undefined;
     private codeFeature:string;
+    private ignoreFileMatch:IMinimatch|undefined;
     // eslint-disable-next-line @typescript-eslint/naming-convention
     public static instance:ProjectManager |undefined;
+
+    private initializeIgnoreFileMatch()
+    {
+        let confiture:string[]|undefined = workspace.getConfiguration("AutoLua.settings").get("ignoreFileMatch");
+        if(confiture != undefined)
+        {
+            
+            let pattern = "{"+confiture.join(",")+"}";
+            this.ignoreFileMatch = new Minimatch(pattern);
+        }
+    }
+
+    private isIgnoreFileByRelativePath(path:string):boolean
+    {
+        if(this.ignoreFileMatch != undefined)
+        {
+            let result = this.ignoreFileMatch.match(path);
+            return result;
+        }
+        return false;
+    }
+
+    private isIgnoreFile(path:string):boolean
+    {
+        return this.isIgnoreFileByRelativePath(workspace.asRelativePath(path));
+    }
 
     private constructor(context:ExtensionContext)
     {
@@ -75,7 +104,7 @@ export class ProjectManager
             'maxSize':5,
             'fileUpdatePackages':[]
         };
-        
+
         let codeFeature:string|undefined = this.workspaceState.get<string>(ProjectManager.codeFeatureKey);
         if(codeFeature == undefined)
         {
@@ -86,7 +115,12 @@ export class ProjectManager
         let uri = (workspace.workspaceFolders as WorkspaceFolder[])[0].uri;
         this.rootfsPath = uri.fsPath;
         this.initializeFileTypeRecord();
-        this.fileWatch= workspace.createFileSystemWatcher(uri.path.substr(1)+"/**",false,false,false);
+        this.initializeIgnoreFileMatch()
+        workspace.onDidChangeConfiguration(()=>{
+            this.initializeIgnoreFileMatch()
+        })
+        let pattern = "/**";
+        this.fileWatch= workspace.createFileSystemWatcher(uri.path.substr(1)+pattern,false,false,false);
         this.fileWatch.onDidChange(uri=>{
             let nowPath = workspace.asRelativePath(uri.path);
             if(this.lastChangePath && this.lastChangePath === nowPath)
@@ -287,7 +321,10 @@ export class ProjectManager
                 outDirectory.push(path);
                 this.findSetFile(path,outDirectory,outFiles);
             }else{
-                outFiles.push(path);
+                if(!this.isIgnoreFileByRelativePath(path))
+                {
+                    outFiles.push(path);
+                }
             }
         });
     }
@@ -411,6 +448,10 @@ export class ProjectManager
 
     private pushFileUpdateEvent(uri:Uri,eventType:FileEventType)
     {
+        if(this.isIgnoreFile(uri.path))
+        {
+            return ;
+        }
         //console.log("update file",FileEventType[eventType],uri.fsPath);
         //console.log(JSON.stringify(this.fileUpdateEvents));
         let path = this.asRelativePath(uri.fsPath);

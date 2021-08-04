@@ -26,6 +26,7 @@ var $root = $protobuf.roots["default"] || ($protobuf.roots["default"] = {});
  * @property {number} INTERRUPT=10 INTERRUPT value
  * @property {number} LOG=11 LOG value
  * @property {number} STOPPED=12 STOPPED value
+ * @property {number} SCREENSHOT=13 SCREENSHOT value
  */
 $root.METHOD = (function() {
     var valuesById = {}, values = Object.create(valuesById);
@@ -42,6 +43,7 @@ $root.METHOD = (function() {
     values[valuesById[10] = "INTERRUPT"] = 10;
     values[valuesById[11] = "LOG"] = 11;
     values[valuesById[12] = "STOPPED"] = 12;
+    values[valuesById[13] = "SCREENSHOT"] = 13;
     return values;
 })();
 
@@ -290,6 +292,7 @@ $root.Message = (function() {
             case 10:
             case 11:
             case 12:
+            case 13:
                 break;
             }
         if (message.name != null && message.hasOwnProperty("name"))
@@ -380,6 +383,10 @@ $root.Message = (function() {
         case "STOPPED":
         case 12:
             message.method = 12;
+            break;
+        case "SCREENSHOT":
+        case 13:
+            message.method = 13;
             break;
         }
         if (object.name != null)

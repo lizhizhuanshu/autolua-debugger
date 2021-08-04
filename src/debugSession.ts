@@ -13,8 +13,6 @@ import { Subject } from 'await-notify';
 import { workspace } from 'vscode';
 
 interface ILaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
-	ip: string;
-	port:number;
 	startFile:string;
 }
 
@@ -24,13 +22,13 @@ export class DebugAdapter extends LoggingDebugSession
     private _runtime:DebuggerProxy;
     private threadID:number = 1;
     private _configurationDone = new Subject();
-    public constructor() {
+    public constructor(runtime:DebuggerProxy) {
 		super("AutoLuaDebugger.txt");
 		// this debugger uses zero-based lines and columns
 		this.setDebuggerLinesStartAt1(false);
 		this.setDebuggerColumnsStartAt1(false);
 
-		this._runtime = new DebuggerProxy();
+		this._runtime = runtime;
 		// setup event handlers
 		this._runtime.on('stopOnEntry', () => {
 			this.sendEvent(new StoppedEvent('entry', this.threadID));
@@ -121,7 +119,7 @@ export class DebugAdapter extends LoggingDebugSession
 	protected async launchRequest(response: DebugProtocol.LaunchResponse, args: ILaunchRequestArguments) {
 		await this._configurationDone.wait(1000);
 		//console.log(args.startFile);
-		this._runtime.executeFile(args.ip,args.port,args.startFile);
+		this._runtime.executeFile(args.startFile);
 		this.sendResponse(response);
 	}
 
